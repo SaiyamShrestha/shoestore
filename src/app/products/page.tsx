@@ -1,3 +1,4 @@
+
 "use client";
 
 import type { Product, FilterOptions as FilterOptionsType } from '@/lib/types';
@@ -176,7 +177,7 @@ const ProductsPage = () => {
                 <Slider
                   min={0}
                   max={filterOptions.maxPrice}
-                  step={10}
+                  step={1}
                   value={priceRange}
                   onValueChange={(value) => setPriceRange(value as [number, number])}
                   className="my-4"
@@ -232,3 +233,5 @@ const ProductsPage = () => {
 };
 
 export default ProductsPage;
+
+    
