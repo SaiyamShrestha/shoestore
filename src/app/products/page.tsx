@@ -14,6 +14,7 @@ import { Label } from "@/components/ui/label";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { Search, X, Filter } from 'lucide-react'; 
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { useSearchParams } from 'next/navigation';
 
 const ProductsPage = () => {
   const [allProducts, setAllProducts] = useState<Product[]>([]);
@@ -25,22 +26,27 @@ const ProductsPage = () => {
   const [selectedBrands, setSelectedBrands] = useState<string[]>([]);
   const [selectedSizes, setSelectedSizes] = useState<string[]>([]);
   const [selectedColors, setSelectedColors] = useState<string[]>([]);
-  const [priceRange, setPriceRange] = useState<[number, number]>([0, 1000]); // Default will be updated
+  const [priceRange, setPriceRange] = useState<[number, number]>([0, 1000]);
   const [sortBy, setSortBy] = useState('name-asc');
+
+  const searchParams = useSearchParams();
 
   useEffect(() => {
     const productsData = getAllProducts();
     setAllProducts(productsData);
-    setFilteredProducts(productsData); // Initially show all products
     const options = fetchFilterOptions();
     setFilterOptions(options);
-    setPriceRange([0, options.maxPrice]); // Set initial price range from data
-  }, []);
+    setPriceRange([0, options.maxPrice]);
+
+    const querySearchTerm = searchParams.get('q');
+    if (querySearchTerm) {
+      setSearchTerm(querySearchTerm);
+    }
+  }, [searchParams]);
 
   useEffect(() => {
     let tempProducts = [...allProducts];
 
-    // Search term filter
     if (searchTerm) {
       tempProducts = tempProducts.filter(p => 
         p.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -50,26 +56,20 @@ const ProductsPage = () => {
       );
     }
 
-    // Category filter
     if (selectedCategories.length > 0) {
       tempProducts = tempProducts.filter(p => selectedCategories.includes(p.category));
     }
-    // Brand filter
     if (selectedBrands.length > 0) {
       tempProducts = tempProducts.filter(p => selectedBrands.includes(p.brand));
     }
-    // Size filter
     if (selectedSizes.length > 0) {
       tempProducts = tempProducts.filter(p => p.sizes.some(s => selectedSizes.includes(s)));
     }
-    // Color filter
     if (selectedColors.length > 0) {
       tempProducts = tempProducts.filter(p => p.availableColors.some(c => selectedColors.includes(c)));
     }
-    // Price range filter
     tempProducts = tempProducts.filter(p => p.price >= priceRange[0] && p.price <= priceRange[1]);
 
-    // Sorting
     switch (sortBy) {
       case 'price-asc':
         tempProducts.sort((a, b) => a.price - b.price);
@@ -83,7 +83,7 @@ const ProductsPage = () => {
       case 'name-desc':
         tempProducts.sort((a, b) => b.name.localeCompare(a.name));
         break;
-      default: // Newest or default
+      default:
         break;
     }
     setFilteredProducts(tempProducts);
@@ -142,7 +142,6 @@ const ProductsPage = () => {
 
   return (
     <div className="flex flex-col lg:flex-row gap-8">
-      {/* Filters Sidebar */}
       <aside className="w-full lg:w-1/4 xl:w-1/5 space-y-6 p-4 bg-card rounded-lg shadow-lg self-start sticky top-24">
         <div className="flex justify-between items-center">
           <h2 className="text-xl font-bold font-headline text-primary">Filters</h2>
@@ -192,7 +191,6 @@ const ProductsPage = () => {
         </Accordion>
       </aside>
 
-      {/* Products Grid */}
       <main className="w-full lg:w-3/4 xl:w-4/5">
         <div className="flex flex-col sm:flex-row justify-between items-center mb-6">
           <h1 className="text-3xl font-bold font-headline text-primary mb-4 sm:mb-0">
@@ -233,5 +231,3 @@ const ProductsPage = () => {
 };
 
 export default ProductsPage;
-
-    

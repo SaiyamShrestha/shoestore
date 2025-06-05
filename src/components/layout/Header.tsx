@@ -1,40 +1,73 @@
+
 "use client";
 
 import Link from 'next/link';
-import { ShoppingCart, UserCircle2, Menu } from 'lucide-react';
+import { ShoppingCart, UserCircle2, Menu, Search } from 'lucide-react';
 import Logo from './Logo';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import { useCart } from '@/contexts/CartContext';
 import { Badge } from '@/components/ui/badge';
 import { Sheet, SheetContent, SheetTrigger, SheetClose } from '@/components/ui/sheet';
 import { useState } from 'react';
+import { useRouter } from 'next/navigation';
+import type { FormEvent } from 'react';
 
 const navLinks = [
   { href: '/', label: 'Home' },
   { href: '/products', label: 'All Shoes' },
-  { href: '/style-matcher', label: 'Style Matcher' },
+  // { href: '/style-matcher', label: 'Style Matcher' }, // Removed
 ];
 
 const Header = () => {
   const { getItemCount } = useCart();
   const itemCount = getItemCount();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [searchTerm, setSearchTerm] = useState('');
+  const router = useRouter();
+
+  const handleSearchSubmit = (e: FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    const termToSearch = searchTerm.trim();
+    if (termToSearch) {
+      router.push(`/products?q=${encodeURIComponent(termToSearch)}`);
+      setSearchTerm(''); 
+      if (isMobileMenuOpen) {
+        setIsMobileMenuOpen(false); 
+      }
+    }
+  };
 
   return (
     <header className="bg-card shadow-md sticky top-0 z-50">
-      <div className="container mx-auto px-4 py-3 flex items-center justify-between">
+      <div className="container mx-auto px-4 py-3 flex items-center justify-between gap-4">
         <Logo />
         
-        {/* Desktop Navigation */}
-        <nav className="hidden md:flex items-center gap-6">
-          {navLinks.map((link) => (
-            <Link key={link.href} href={link.href} className="text-foreground hover:text-primary transition-colors font-medium">
-              {link.label}
-            </Link>
-          ))}
-        </nav>
+        <div className="hidden md:flex items-center flex-1 justify-end max-w-3xl">
+          <nav className="flex items-center gap-6">
+            {navLinks.map((link) => (
+              <Link key={link.href} href={link.href} className="text-foreground hover:text-primary transition-colors font-medium">
+                {link.label}
+              </Link>
+            ))}
+          </nav>
+          
+          <form onSubmit={handleSearchSubmit} className="flex items-center gap-2 ml-6">
+            <Input
+              type="search"
+              placeholder="Search..."
+              className="h-9 w-40 lg:w-48"
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              aria-label="Search shoes"
+            />
+            <Button type="submit" variant="ghost" size="icon" className="h-9 w-9" aria-label="Submit search">
+              <Search className="h-5 w-5" />
+            </Button>
+          </form>
+        </div>
 
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2 shrink-0">
           <Link href="/cart" passHref>
             <Button variant="ghost" size="icon" aria-label="Shopping Cart" className="relative">
               <ShoppingCart className="h-6 w-6" />
@@ -49,7 +82,6 @@ const Header = () => {
             <UserCircle2 className="h-6 w-6" />
           </Button>
 
-          {/* Mobile Navigation Trigger */}
           <div className="md:hidden">
             <Sheet open={isMobileMenuOpen} onOpenChange={setIsMobileMenuOpen}>
               <SheetTrigger asChild>
@@ -67,6 +99,19 @@ const Header = () => {
                     </SheetClose>
                   ))}
                 </nav>
+                <form onSubmit={handleSearchSubmit} className="flex items-center gap-2 mt-6 border-t pt-4">
+                  <Input
+                    type="search"
+                    placeholder="Search shoes..."
+                    className="h-10 flex-grow"
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    aria-label="Search shoes (mobile)"
+                  />
+                  <Button type="submit" variant="ghost" size="icon" className="h-10 w-10" aria-label="Submit search (mobile)">
+                    <Search className="h-5 w-5" />
+                  </Button>
+                </form>
               </SheetContent>
             </Sheet>
           </div>
