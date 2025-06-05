@@ -14,7 +14,7 @@ import { Label } from "@/components/ui/label";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { Search, X, Filter } from 'lucide-react'; 
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { useSearchParams } from 'next/navigation';
+import { useSearchParams, useRouter } from 'next/navigation';
 
 const ProductsPage = () => {
   const [allProducts, setAllProducts] = useState<Product[]>([]);
@@ -30,13 +30,14 @@ const ProductsPage = () => {
   const [sortBy, setSortBy] = useState('name-asc');
 
   const searchParams = useSearchParams();
+  const router = useRouter(); // Added router for programmatic navigation in resetFilters
 
   useEffect(() => {
     const productsData = getAllProducts();
     setAllProducts(productsData);
     const options = fetchFilterOptions();
     setFilterOptions(options);
-    if (options) { // Check if options is not null
+    if (options) { 
         setPriceRange([0, options.maxPrice]);
     }
 
@@ -48,11 +49,6 @@ const ProductsPage = () => {
     const queryCategory = searchParams.get('category');
     if (queryCategory) {
       setSelectedCategories([queryCategory]);
-    } else {
-      // If no category in query, and it's an initial load from URL (not user interaction)
-      // we might want to clear selectedCategories if they were set by a previous URL.
-      // However, this might interfere if the user clears the category from URL but wants to keep filters.
-      // For now, only set if queryCategory exists. User can clear filters via UI.
     }
   }, [searchParams]);
 
@@ -81,7 +77,7 @@ const ProductsPage = () => {
       tempProducts = tempProducts.filter(p => p.availableColors.some(c => selectedColors.includes(c)));
     }
     
-    if (filterOptions) { // Ensure filterOptions is loaded before using priceRange with it
+    if (filterOptions) { 
         tempProducts = tempProducts.filter(p => p.price >= priceRange[0] && p.price <= priceRange[1]);
     }
 
@@ -117,13 +113,14 @@ const ProductsPage = () => {
     setSelectedColors([]);
     if (filterOptions) setPriceRange([0, filterOptions.maxPrice]);
     setSortBy('name-asc');
-     // After resetting filters, remove category from URL if it exists
     const currentParams = new URLSearchParams(window.location.search);
     if (currentParams.has('category')) {
       currentParams.delete('category');
-      // Keep other params like 'q'
-      router.push(`${window.location.pathname}?${currentParams.toString()}`);
     }
+    if (currentParams.has('q')) {
+        currentParams.delete('q');
+    }
+    router.push(`${window.location.pathname}?${currentParams.toString()}`);
   };
   
   const activeFilterCount = useMemo(() => {
@@ -165,7 +162,6 @@ const ProductsPage = () => {
     </AccordionItem>
   );
   
-  const router = useRouter(); // Added router for programmatic navigation in resetFilters
 
   return (
     <div className="flex flex-col lg:flex-row gap-8">
@@ -204,7 +200,7 @@ const ProductsPage = () => {
                 <Slider
                   min={0}
                   max={filterOptions.maxPrice}
-                  step={1} // Changed from 10 to 1
+                  step={1}
                   value={priceRange}
                   onValueChange={(value) => setPriceRange(value as [number, number])}
                   className="my-4"
@@ -260,4 +256,3 @@ const ProductsPage = () => {
 };
 
 export default ProductsPage;
-
