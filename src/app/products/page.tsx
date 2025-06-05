@@ -36,11 +36,23 @@ const ProductsPage = () => {
     setAllProducts(productsData);
     const options = fetchFilterOptions();
     setFilterOptions(options);
-    setPriceRange([0, options.maxPrice]);
+    if (options) { // Check if options is not null
+        setPriceRange([0, options.maxPrice]);
+    }
 
     const querySearchTerm = searchParams.get('q');
     if (querySearchTerm) {
       setSearchTerm(querySearchTerm);
+    }
+
+    const queryCategory = searchParams.get('category');
+    if (queryCategory) {
+      setSelectedCategories([queryCategory]);
+    } else {
+      // If no category in query, and it's an initial load from URL (not user interaction)
+      // we might want to clear selectedCategories if they were set by a previous URL.
+      // However, this might interfere if the user clears the category from URL but wants to keep filters.
+      // For now, only set if queryCategory exists. User can clear filters via UI.
     }
   }, [searchParams]);
 
@@ -68,7 +80,11 @@ const ProductsPage = () => {
     if (selectedColors.length > 0) {
       tempProducts = tempProducts.filter(p => p.availableColors.some(c => selectedColors.includes(c)));
     }
-    tempProducts = tempProducts.filter(p => p.price >= priceRange[0] && p.price <= priceRange[1]);
+    
+    if (filterOptions) { // Ensure filterOptions is loaded before using priceRange with it
+        tempProducts = tempProducts.filter(p => p.price >= priceRange[0] && p.price <= priceRange[1]);
+    }
+
 
     switch (sortBy) {
       case 'price-asc':
@@ -87,7 +103,7 @@ const ProductsPage = () => {
         break;
     }
     setFilteredProducts(tempProducts);
-  }, [searchTerm, selectedCategories, selectedBrands, selectedSizes, selectedColors, priceRange, sortBy, allProducts]);
+  }, [searchTerm, selectedCategories, selectedBrands, selectedSizes, selectedColors, priceRange, sortBy, allProducts, filterOptions]);
 
   const handleCheckboxFilterChange = (setter: React.Dispatch<React.SetStateAction<string[]>>, value: string) => {
     setter(prev => prev.includes(value) ? prev.filter(item => item !== value) : [...prev, value]);
@@ -101,15 +117,24 @@ const ProductsPage = () => {
     setSelectedColors([]);
     if (filterOptions) setPriceRange([0, filterOptions.maxPrice]);
     setSortBy('name-asc');
+     // After resetting filters, remove category from URL if it exists
+    const currentParams = new URLSearchParams(window.location.search);
+    if (currentParams.has('category')) {
+      currentParams.delete('category');
+      // Keep other params like 'q'
+      router.push(`${window.location.pathname}?${currentParams.toString()}`);
+    }
   };
   
   const activeFilterCount = useMemo(() => {
-    return (searchTerm ? 1 : 0) +
-           selectedCategories.length +
-           selectedBrands.length +
-           selectedSizes.length +
-           selectedColors.length +
-           (filterOptions && (priceRange[0] !== 0 || priceRange[1] !== filterOptions.maxPrice) ? 1 : 0);
+    let count = 0;
+    if (searchTerm) count++;
+    if (selectedCategories.length > 0) count += selectedCategories.length;
+    if (selectedBrands.length > 0) count += selectedBrands.length;
+    if (selectedSizes.length > 0) count += selectedSizes.length;
+    if (selectedColors.length > 0) count += selectedColors.length;
+    if (filterOptions && (priceRange[0] !== 0 || priceRange[1] !== filterOptions.maxPrice)) count++;
+    return count;
   }, [searchTerm, selectedCategories, selectedBrands, selectedSizes, selectedColors, priceRange, filterOptions]);
 
 
@@ -129,6 +154,7 @@ const ProductsPage = () => {
                   id={`${title}-${item}`}
                   checked={selectedItems.includes(item)}
                   onCheckedChange={() => onChange(item)}
+                  aria-label={`Filter by ${title} ${item}`}
                 />
                 <Label htmlFor={`${title}-${item}`} className="font-normal cursor-pointer">{item}</Label>
               </div>
@@ -139,6 +165,7 @@ const ProductsPage = () => {
     </AccordionItem>
   );
   
+  const router = useRouter(); // Added router for programmatic navigation in resetFilters
 
   return (
     <div className="flex flex-col lg:flex-row gap-8">
@@ -147,7 +174,7 @@ const ProductsPage = () => {
           <h2 className="text-xl font-bold font-headline text-primary">Filters</h2>
           {activeFilterCount > 0 && (
             <Button variant="ghost" size="sm" onClick={resetFilters} className="text-sm text-muted-foreground hover:text-destructive">
-              <X className="h-4 w-4 mr-1" /> Reset
+              <X className="h-4 w-4 mr-1" /> Reset All
             </Button>
           )}
         </div>
@@ -159,11 +186,12 @@ const ProductsPage = () => {
               value={searchTerm}
               onChange={e => setSearchTerm(e.target.value)}
               className="pl-10 mb-4"
+              aria-label="Search products"
             />
         </div>
 
 
-        <Accordion type="multiple" defaultValue={['category', 'brand']} className="w-full">
+        <Accordion type="multiple" defaultValue={['category', 'brand', 'price']} className="w-full">
           <FilterSection title="Category" items={filterOptions.categories} selectedItems={selectedCategories} onChange={(val) => handleCheckboxFilterChange(setSelectedCategories, val)} />
           <FilterSection title="Brand" items={filterOptions.brands} selectedItems={selectedBrands} onChange={(val) => handleCheckboxFilterChange(setSelectedBrands, val)} />
           <FilterSection title="Size" items={filterOptions.sizes} selectedItems={selectedSizes} onChange={(val) => handleCheckboxFilterChange(setSelectedSizes, val)} />
@@ -172,14 +200,15 @@ const ProductsPage = () => {
           <AccordionItem value="price">
             <AccordionTrigger className="font-semibold">Price Range</AccordionTrigger>
             <AccordionContent>
-              <div className="space-y-2">
+              <div className="space-y-2 pt-2">
                 <Slider
                   min={0}
                   max={filterOptions.maxPrice}
-                  step={1}
+                  step={1} // Changed from 10 to 1
                   value={priceRange}
                   onValueChange={(value) => setPriceRange(value as [number, number])}
                   className="my-4"
+                  aria-label="Price range slider"
                 />
                 <div className="flex justify-between text-sm text-muted-foreground">
                   <span>${priceRange[0]}</span>
@@ -194,10 +223,10 @@ const ProductsPage = () => {
       <main className="w-full lg:w-3/4 xl:w-4/5">
         <div className="flex flex-col sm:flex-row justify-between items-center mb-6">
           <h1 className="text-3xl font-bold font-headline text-primary mb-4 sm:mb-0">
-            All Shoes ({filteredProducts.length})
+            {selectedCategories.length === 1 && !searchTerm ? `${selectedCategories[0]}` : "All Shoes"} ({filteredProducts.length})
           </h1>
           <Select value={sortBy} onValueChange={setSortBy}>
-            <SelectTrigger className="w-full sm:w-[180px]">
+            <SelectTrigger className="w-full sm:w-[180px]" aria-label="Sort products by">
               <SelectValue placeholder="Sort by" />
             </SelectTrigger>
             <SelectContent>
@@ -231,3 +260,4 @@ const ProductsPage = () => {
 };
 
 export default ProductsPage;
+
