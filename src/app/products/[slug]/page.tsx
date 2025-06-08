@@ -1,9 +1,10 @@
+
 "use client";
 
 import type { Product } from '@/lib/types';
 import { getProductBySlug } from '@/lib/mock-data';
 import Image from 'next/image';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, use } from 'react'; // Added 'use'
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { useCart } from '@/contexts/CartContext';
@@ -15,12 +16,14 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
 
 interface ProductDetailsPageProps {
-  params: {
+  params: { // This is the prop Next.js might treat as Promise-like
     slug: string;
   };
 }
 
-const ProductDetailsPage = ({ params }: ProductDetailsPageProps) => {
+const ProductDetailsPage = ({ params: paramsProp }: ProductDetailsPageProps) => {
+  const params = use(paramsProp); // Unwrap the params prop
+
   const [product, setProduct] = useState<Product | null>(null);
   const [selectedSize, setSelectedSize] = useState<string>('');
   const [selectedImage, setSelectedImage] = useState<string>('');
@@ -28,7 +31,7 @@ const ProductDetailsPage = ({ params }: ProductDetailsPageProps) => {
   const { addToCart } = useCart();
 
   useEffect(() => {
-    if (params.slug) {
+    if (params && params.slug) { // Use the unwrapped params
       const fetchedProduct = getProductBySlug(params.slug);
       if (fetchedProduct) {
         setProduct(fetchedProduct);
@@ -36,7 +39,7 @@ const ProductDetailsPage = ({ params }: ProductDetailsPageProps) => {
         setSelectedImage(fetchedProduct.images[0] || '');
       }
     }
-  }, [params.slug]);
+  }, [params?.slug]); // Depend on the unwrapped params.slug
 
   if (!product) {
     return <div className="text-center py-10">Loading product details...</div>;
