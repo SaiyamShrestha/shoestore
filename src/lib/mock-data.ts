@@ -6,7 +6,8 @@ const sampleReviews: ProductReview[] = [
   { id: 'review3', author: 'Casey P.', rating: 5, comment: 'Perfect fit and excellent quality.', date: '2024-04-20' },
 ];
 
-export const products: Product[] = [
+// Allow products to be mutated for in-memory CRUD operations
+export let products: Product[] = [
   {
     id: '1',
     name: 'Urban Strider X1',
