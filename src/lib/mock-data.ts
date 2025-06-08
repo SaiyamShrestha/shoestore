@@ -1,3 +1,4 @@
+
 import type { Product, ProductReview } from './types';
 
 const sampleReviews: ProductReview[] = [
@@ -22,7 +23,7 @@ export let products: Product[] = [
     slug: 'urban-strider-x1',
     stock: 50,
     tags: ['casual', 'running', 'comfort'],
-    dataAiHint: 'sneaker shoe',
+    dataAiHint: 'urban sneaker',
   },
   {
     id: '2',
@@ -54,7 +55,7 @@ export let products: Product[] = [
     slug: 'elegant-loafer-classic',
     stock: 25,
     tags: ['formal', 'office', 'leather'],
-    dataAiHint: 'loafer shoe',
+    dataAiHint: 'leather loafer',
   },
   {
     id: '4',
@@ -70,7 +71,7 @@ export let products: Product[] = [
     slug: 'summer-breeze-sandals',
     stock: 70,
     tags: ['summer', 'beach', 'casual'],
-    dataAiHint: 'sandal shoe',
+    dataAiHint: 'summer sandal',
   },
   {
     id: '5',
@@ -86,7 +87,7 @@ export let products: Product[] = [
     slug: 'performance-runner-z500',
     stock: 40,
     tags: ['running', 'performance', 'sport'],
-    dataAiHint: 'running shoe',
+    dataAiHint: 'sporty runner',
   },
   {
     id: '6',
@@ -102,7 +103,7 @@ export let products: Product[] = [
     slug: 'classic-oxford-brogue',
     stock: 15,
     tags: ['formal', 'business', 'leather', 'wedding'],
-    dataAiHint: 'oxford shoe',
+    dataAiHint: 'formal oxford',
   }
 ];
 
