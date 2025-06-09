@@ -15,7 +15,7 @@ import { Search, X, Filter, ChevronLeft, ChevronRight } from 'lucide-react';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { useSearchParams, useRouter } from 'next/navigation';
 
-const PRODUCTS_PER_PAGE = 9;
+const PRODUCTS_PER_PAGE = 3; // Changed from 9 to 3 to show pagination
 
 const ProductsPage = () => {
   const [allProducts, setAllProducts] = useState<Product[]>([]);
@@ -316,3 +316,5 @@ const ProductsPage = () => {
 };
 
 export default ProductsPage;
+
+    
