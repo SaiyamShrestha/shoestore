@@ -11,9 +11,9 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { useRouter } from 'next/navigation';
 import { useToast } from '@/hooks/use-toast';
-import { useEffect, useState } from 'react'; // Added useState
+import { useEffect, useState } from 'react'; 
 import Image from 'next/image';
-import { ShieldCheck, ExternalLink, Loader2 } from 'lucide-react'; // Added Loader2
+import { ShieldCheck, ExternalLink, Loader2 } from 'lucide-react'; 
 import { loadStripe, type Stripe } from '@stripe/stripe-js';
 
 const shippingSchema = z.object({
@@ -48,7 +48,7 @@ const CheckoutPage = () => {
   });
 
   useEffect(() => {
-    if (itemCount === 0 && !isProcessingPayment) { // Don't redirect if processing payment
+    if (itemCount === 0 && !isProcessingPayment) { 
       toast({
         title: "Your cart is empty",
         description: "Redirecting to products page...",
@@ -74,12 +74,14 @@ const CheckoutPage = () => {
       const response = await fetch('/api/stripe/create-checkout-session', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ cartItems, shippingDetails: data }), // Send cart items and shipping
+        body: JSON.stringify({ cartItems, shippingDetails: data }), 
       });
 
       if (!response.ok) {
         const errorData = await response.json();
-        throw new Error(errorData.message || 'Failed to create Stripe session.');
+        // Prioritize specific error from server (errorData.error), then general message from server (errorData.message), then a fallback.
+        const displayError = errorData.error || errorData.message || 'Failed to create Stripe session.';
+        throw new Error(displayError);
       }
 
       const { sessionId } = await response.json();
@@ -96,10 +98,6 @@ const CheckoutPage = () => {
             variant: 'destructive',
           });
         }
-        // If redirectToCheckout is successful, the user is taken to Stripe.
-        // If they complete payment, Stripe redirects them to your success_url.
-        // If they cancel, Stripe redirects them to your cancel_url.
-        // clearCart() will be called on successful payment (e.g. on order-confirmation page or via webhook)
       } else {
          throw new Error('Stripe or Session ID missing.');
       }
@@ -118,7 +116,7 @@ const CheckoutPage = () => {
   
   const isButtonDisabled = isFormSubmitting || isProcessingPayment;
 
-  if (itemCount === 0 && !isProcessingPayment) { // Also check isProcessingPayment here
+  if (itemCount === 0 && !isProcessingPayment) { 
     return <div className="text-center py-10">Your cart is empty. Redirecting...</div>;
   }
   

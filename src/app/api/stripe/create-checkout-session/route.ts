@@ -3,19 +3,34 @@ import { NextRequest, NextResponse } from 'next/server';
 import Stripe from 'stripe';
 import type { CartItem } from '@/lib/types';
 
+if (!process.env.STRIPE_SECRET_KEY) {
+  console.error("CRITICAL: STRIPE_SECRET_KEY is not set in environment variables.");
+}
+
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
   apiVersion: '2024-06-20', // Use the latest API version
 });
 
 export async function POST(request: NextRequest) {
-  try {
-    const { cartItems } = await request.json() as { cartItems: CartItem[] };
+  if (!process.env.STRIPE_SECRET_KEY) {
+    return NextResponse.json({ message: 'Configuration error: Stripe secret key not set on server.' }, { status: 500 });
+  }
 
-    if (!cartItems || cartItems.length === 0) {
+  try {
+    const { cartItems: originalCartItems } = await request.json() as { cartItems: CartItem[] };
+
+    if (!originalCartItems || originalCartItems.length === 0) {
       return NextResponse.json({ message: 'Cart is empty' }, { status: 400 });
     }
 
-    const line_items = cartItems.map((item) => ({
+    // Filter cart items to ensure they are valid for Stripe (positive price and quantity)
+    const validCartItems = originalCartItems.filter(item => item.price > 0 && item.quantity > 0);
+
+    if (validCartItems.length === 0) {
+      return NextResponse.json({ message: 'No valid items in cart for checkout (e.g., items with zero price or quantity).' }, { status: 400 });
+    }
+
+    const line_items = validCartItems.map((item) => ({
       price_data: {
         currency: 'usd',
         product_data: {
@@ -47,6 +62,8 @@ export async function POST(request: NextRequest) {
   } catch (error) {
     console.error('Error creating Stripe session:', error);
     const errorMessage = error instanceof Error ? error.message : 'Internal server error';
-    return NextResponse.json({ message: 'Failed to create Stripe session', error: errorMessage }, { status: 500 });
+    // Return the error message from Stripe if available, otherwise a generic one.
+    return NextResponse.json({ message: 'Failed to create Stripe session on server.', error: errorMessage }, { status: 500 });
   }
 }
+
