@@ -11,9 +11,10 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { useRouter } from 'next/navigation';
 import { useToast } from '@/hooks/use-toast';
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react'; // Added useState
 import Image from 'next/image';
-import { ShieldCheck, ExternalLink } from 'lucide-react'; // Added ExternalLink
+import { ShieldCheck, ExternalLink, Loader2 } from 'lucide-react'; // Added Loader2
+import { loadStripe, type Stripe } from '@stripe/stripe-js';
 
 const shippingSchema = z.object({
   fullName: z.string().min(2, "Full name is required"),
@@ -25,18 +26,14 @@ const shippingSchema = z.object({
   phone: z.string().optional(),
 });
 
-// Payment schema removed as Stripe will handle payment details externally.
-// const paymentSchema = z.object({
-//   cardNumber: z.string().length(16, "Card number must be 16 digits").regex(/^\d+$/, "Invalid card number"),
-//   expiryDate: z.string().regex(/^(0[1-9]|1[0-2])\/\d{2}$/, "MM/YY format required"),
-//   cvv: z.string().length(3, "CVV must be 3 digits").regex(/^\d+$/, "Invalid CVV"),
-//   cardHolderName: z.string().min(2, "Cardholder name is required"),
-// });
-
-// Checkout schema now only includes shipping details.
 const checkoutSchema = shippingSchema;
-
 type CheckoutFormValues = z.infer<typeof checkoutSchema>;
+
+// Initialize Stripe.js with your publishable key
+const stripePromise = process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY
+  ? loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY)
+  : null;
+
 
 const CheckoutPage = () => {
   const { cartItems, getCartTotal, clearCart, getItemCount } = useCart();
@@ -44,13 +41,14 @@ const CheckoutPage = () => {
   const { toast } = useToast();
   const cartTotal = getCartTotal();
   const itemCount = getItemCount();
+  const [isProcessingPayment, setIsProcessingPayment] = useState(false);
 
-  const { register, handleSubmit, formState: { errors, isSubmitting } } = useForm<CheckoutFormValues>({
+  const { register, handleSubmit, formState: { errors, isSubmitting: isFormSubmitting } } = useForm<CheckoutFormValues>({
     resolver: zodResolver(checkoutSchema),
   });
 
   useEffect(() => {
-    if (itemCount === 0) {
+    if (itemCount === 0 && !isProcessingPayment) { // Don't redirect if processing payment
       toast({
         title: "Your cart is empty",
         description: "Redirecting to products page...",
@@ -58,34 +56,88 @@ const CheckoutPage = () => {
       });
       router.push('/products');
     }
-  }, [itemCount, router, toast]);
+  }, [itemCount, router, toast, isProcessingPayment]);
 
   const onSubmit: SubmitHandler<CheckoutFormValues> = async (data) => {
-    // Simulate API call for order creation (without payment details)
-    await new Promise(resolve => setTimeout(resolve, 1500));
-    console.log("Shipping Data:", data); 
-    // In a real Stripe integration, you would now redirect to Stripe Checkout
-    // or use Stripe Elements to finalize the payment on the client-side,
-    // after creating a PaymentIntent on your server.
+    if (!stripePromise) {
+      toast({
+        title: "Stripe Error",
+        description: "Stripe.js has not loaded. Please check your configuration.",
+        variant: "destructive",
+      });
+      return;
+    }
+    setIsProcessingPayment(true);
 
-    toast({
-      title: "Order Confirmed!",
-      description: "Thank you for your purchase. You will be redirected to payment.",
-    });
-    // clearCart(); // Typically clear cart after successful payment confirmation from Stripe
-    // router.push('/order-confirmation'); 
+    try {
+      // 1. Create a Checkout Session on your server
+      const response = await fetch('/api/stripe/create-checkout-session', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ cartItems, shippingDetails: data }), // Send cart items and shipping
+      });
 
-    // For now, we'll simulate a redirect to a generic confirmation page.
-    // In a real scenario, this would happen AFTER Stripe confirms payment.
-    setTimeout(() => {
-        clearCart();
-        router.push('/order-confirmation'); 
-    }, 2000);
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Failed to create Stripe session.');
+      }
+
+      const { sessionId } = await response.json();
+
+      // 2. Redirect to Stripe Checkout
+      const stripe = await stripePromise;
+      if (stripe && sessionId) {
+        const { error } = await stripe.redirectToCheckout({ sessionId });
+        if (error) {
+          console.error('Stripe redirectToCheckout error:', error);
+          toast({
+            title: 'Payment Error',
+            description: error.message || 'Could not redirect to Stripe. Please try again.',
+            variant: 'destructive',
+          });
+        }
+        // If redirectToCheckout is successful, the user is taken to Stripe.
+        // If they complete payment, Stripe redirects them to your success_url.
+        // If they cancel, Stripe redirects them to your cancel_url.
+        // clearCart() will be called on successful payment (e.g. on order-confirmation page or via webhook)
+      } else {
+         throw new Error('Stripe or Session ID missing.');
+      }
+
+    } catch (error) {
+      console.error('Checkout process error:', error);
+      toast({
+        title: 'Checkout Error',
+        description: (error as Error).message || 'An unexpected error occurred. Please try again.',
+        variant: 'destructive',
+      });
+    } finally {
+      setIsProcessingPayment(false);
+    }
   };
+  
+  const isButtonDisabled = isFormSubmitting || isProcessingPayment;
 
-  if (itemCount === 0) {
+  if (itemCount === 0 && !isProcessingPayment) { // Also check isProcessingPayment here
     return <div className="text-center py-10">Your cart is empty. Redirecting...</div>;
   }
+  
+  if (!process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY) {
+     return (
+        <div className="flex flex-col items-center justify-center h-screen">
+            <Card className="p-8 shadow-xl border-destructive">
+                <CardHeader>
+                    <CardTitle className="text-2xl text-destructive">Configuration Error</CardTitle>
+                </CardHeader>
+                <CardContent>
+                    <p>Stripe Publishable Key is not configured.</p>
+                    <p>Please set <code className="bg-muted px-1 py-0.5 rounded">NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY</code> in your environment variables.</p>
+                </CardContent>
+            </Card>
+        </div>
+     );
+  }
+
 
   return (
     <div className="grid lg:grid-cols-2 gap-12">
@@ -125,39 +177,39 @@ const CheckoutPage = () => {
           <CardContent className="space-y-4">
             <div>
               <Label htmlFor="fullName">Full Name</Label>
-              <Input id="fullName" {...register("fullName")} />
+              <Input id="fullName" {...register("fullName")} disabled={isButtonDisabled} />
               {errors.fullName && <p className="text-sm text-destructive mt-1">{errors.fullName.message}</p>}
             </div>
             <div>
               <Label htmlFor="email">Email</Label>
-              <Input id="email" type="email" {...register("email")} />
+              <Input id="email" type="email" {...register("email")} disabled={isButtonDisabled} />
               {errors.email && <p className="text-sm text-destructive mt-1">{errors.email.message}</p>}
             </div>
             <div>
               <Label htmlFor="address">Address</Label>
-              <Input id="address" {...register("address")} />
+              <Input id="address" {...register("address")} disabled={isButtonDisabled} />
               {errors.address && <p className="text-sm text-destructive mt-1">{errors.address.message}</p>}
             </div>
             <div className="grid sm:grid-cols-2 gap-4">
               <div>
                 <Label htmlFor="city">City</Label>
-                <Input id="city" {...register("city")} />
+                <Input id="city" {...register("city")} disabled={isButtonDisabled} />
                 {errors.city && <p className="text-sm text-destructive mt-1">{errors.city.message}</p>}
               </div>
               <div>
                 <Label htmlFor="postalCode">Postal Code</Label>
-                <Input id="postalCode" {...register("postalCode")} />
+                <Input id="postalCode" {...register("postalCode")} disabled={isButtonDisabled} />
                 {errors.postalCode && <p className="text-sm text-destructive mt-1">{errors.postalCode.message}</p>}
               </div>
             </div>
             <div>
               <Label htmlFor="country">Country</Label>
-              <Input id="country" {...register("country")} />
+              <Input id="country" {...register("country")} disabled={isButtonDisabled} />
               {errors.country && <p className="text-sm text-destructive mt-1">{errors.country.message}</p>}
             </div>
             <div>
               <Label htmlFor="phone">Phone (Optional)</Label>
-              <Input id="phone" type="tel" {...register("phone")} />
+              <Input id="phone" type="tel" {...register("phone")} disabled={isButtonDisabled} />
             </div>
           </CardContent>
         </Card>
@@ -171,15 +223,19 @@ const CheckoutPage = () => {
           </CardHeader>
           <CardContent>
             <p className="text-sm text-foreground">
-              After confirming your order, you will be redirected to Stripe's secure payment gateway to complete your purchase. 
+              After confirming your shipping details, you will be redirected to Stripe's secure payment gateway to complete your purchase. 
               We do not store your payment information on our servers.
             </p>
           </CardContent>
         </Card>
 
-        <Button type="submit" size="lg" className="w-full bg-accent hover:bg-accent/90 text-accent-foreground" disabled={isSubmitting}>
-          {isSubmitting ? "Processing..." : `Confirm Order & Proceed to Pay $${cartTotal.toFixed(2)}`} 
-          {!isSubmitting && <ExternalLink className="ml-2 h-5 w-5" />}
+        <Button type="submit" size="lg" className="w-full bg-accent hover:bg-accent/90 text-accent-foreground" disabled={isButtonDisabled}>
+          {isProcessingPayment ? (
+            <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+          ) : (
+            <ExternalLink className="mr-2 h-5 w-5" />
+          )}
+          {isProcessingPayment ? 'Processing...' : `Confirm & Proceed to Pay $${cartTotal.toFixed(2)}`} 
         </Button>
       </form>
     </div>
@@ -187,5 +243,3 @@ const CheckoutPage = () => {
 };
 
 export default CheckoutPage;
-
-    
