@@ -4,10 +4,10 @@ import Link from 'next/link';
 import Image from 'next/image';
 import ProductCard from '@/components/products/ProductCard';
 import { getAllProducts } from '@/lib/mock-data';
-import { ArrowRight, Zap, Award, Search } from 'lucide-react'; // Removed ShieldCheck, added Search
+import { ArrowRight, Zap, Award, Search } from 'lucide-react'; 
 
 export default function HomePage() {
-  const featuredProducts = getAllProducts().slice(0, 3); 
+  const featuredProducts = getAllProducts().slice(0, 6); 
 
   return (
     <div className="space-y-16">

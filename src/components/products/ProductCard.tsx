@@ -1,16 +1,26 @@
+
+"use client";
+
 import type { Product } from '@/lib/types';
 import Image from 'next/image';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { ArrowRight } from 'lucide-react';
+import { ShoppingCart } from 'lucide-react';
+import { useCart } from '@/contexts/CartContext';
 
 interface ProductCardProps {
   product: Product;
 }
 
 const ProductCard = ({ product }: ProductCardProps) => {
+  const { addToCart } = useCart();
+
+  const handleAddToCart = () => {
+    addToCart(product); // Adds 1 unit by default
+  };
+
   return (
     <Card className="overflow-hidden shadow-lg hover:shadow-xl transition-shadow duration-300 flex flex-col h-full">
       <Link href={`/products/${product.slug}`} passHref className="block">
@@ -42,11 +52,23 @@ const ProductCard = ({ product }: ProductCardProps) => {
         <p className="text-lg font-semibold text-primary">${product.price.toFixed(2)}</p>
       </CardContent>
       <CardFooter className="p-4 pt-0">
-        <Link href={`/products/${product.slug}`} passHref className="w-full">
-          <Button variant="outline" className="w-full">
-            View Details <ArrowRight className="ml-2 h-4 w-4" />
+        {product.stock > 0 ? (
+          <Button 
+            variant="outline" 
+            className="w-full bg-accent hover:bg-accent/90 text-accent-foreground border-accent hover:border-accent/90" 
+            onClick={handleAddToCart}
+          >
+            Add to Cart <ShoppingCart className="ml-2 h-4 w-4" />
           </Button>
-        </Link>
+        ) : (
+          <Button 
+            variant="outline" 
+            className="w-full" 
+            disabled
+          >
+            Out of Stock
+          </Button>
+        )}
       </CardFooter>
     </Card>
   );
