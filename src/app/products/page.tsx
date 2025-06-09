@@ -11,9 +11,11 @@ import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
-import { Search, X, Filter } from 'lucide-react'; 
+import { Search, X, Filter, ChevronLeft, ChevronRight } from 'lucide-react'; 
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { useSearchParams, useRouter } from 'next/navigation';
+
+const PRODUCTS_PER_PAGE = 9;
 
 const ProductsPage = () => {
   const [allProducts, setAllProducts] = useState<Product[]>([]);
@@ -25,8 +27,8 @@ const ProductsPage = () => {
   const [selectedBrands, setSelectedBrands] = useState<string[]>([]);
   const [selectedSizes, setSelectedSizes] = useState<string[]>([]);
   const [selectedColors, setSelectedColors] = useState<string[]>([]);
-  // Price range state removed
   const [sortBy, setSortBy] = useState('name-asc');
+  const [currentPage, setCurrentPage] = useState(1);
 
   const searchParams = useSearchParams();
   const router = useRouter(); 
@@ -36,7 +38,6 @@ const ProductsPage = () => {
     setAllProducts(productsData);
     const options = fetchFilterOptions();
     setFilterOptions(options);
-    // Price range initialization removed
 
     const querySearchTerm = searchParams.get('q');
     if (querySearchTerm) {
@@ -74,8 +75,6 @@ const ProductsPage = () => {
       tempProducts = tempProducts.filter(p => p.availableColors.some(c => selectedColors.includes(c)));
     }
     
-    // Price range filter logic removed
-
     switch (sortBy) {
       case 'price-asc':
         tempProducts.sort((a, b) => a.price - b.price);
@@ -93,7 +92,8 @@ const ProductsPage = () => {
         break;
     }
     setFilteredProducts(tempProducts);
-  }, [searchTerm, selectedCategories, selectedBrands, selectedSizes, selectedColors, sortBy, allProducts, filterOptions]);
+    setCurrentPage(1); // Reset to first page when filters or sort order changes
+  }, [searchTerm, selectedCategories, selectedBrands, selectedSizes, selectedColors, sortBy, allProducts]);
 
   const handleCheckboxFilterChange = (setter: React.Dispatch<React.SetStateAction<string[]>>, value: string) => {
     setter(prev => prev.includes(value) ? prev.filter(item => item !== value) : [...prev, value]);
@@ -105,8 +105,8 @@ const ProductsPage = () => {
     setSelectedBrands([]);
     setSelectedSizes([]);
     setSelectedColors([]);
-    // Price range reset removed
     setSortBy('name-asc');
+    setCurrentPage(1);
     const currentParams = new URLSearchParams(window.location.search);
     if (currentParams.has('category')) {
       currentParams.delete('category');
@@ -124,14 +124,26 @@ const ProductsPage = () => {
     if (selectedBrands.length > 0) count += selectedBrands.length;
     if (selectedSizes.length > 0) count += selectedSizes.length;
     if (selectedColors.length > 0) count += selectedColors.length;
-    // Price range count removed
     return count;
-  }, [searchTerm, selectedCategories, selectedBrands, selectedSizes, selectedColors, filterOptions]);
+  }, [searchTerm, selectedCategories, selectedBrands, selectedSizes, selectedColors]);
 
 
   if (!filterOptions) {
     return <div className="text-center py-10">Loading products...</div>;
   }
+
+  // Pagination logic
+  const indexOfLastProduct = currentPage * PRODUCTS_PER_PAGE;
+  const indexOfFirstProduct = indexOfLastProduct - PRODUCTS_PER_PAGE;
+  const currentProductsToDisplay = filteredProducts.slice(indexOfFirstProduct, indexOfLastProduct);
+  const totalPages = Math.ceil(filteredProducts.length / PRODUCTS_PER_PAGE);
+
+  const handlePageChange = (pageNumber: number) => {
+    if (pageNumber >= 1 && pageNumber <= totalPages) {
+      setCurrentPage(pageNumber);
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+  };
 
   const FilterSection = ({ title, items, selectedItems, onChange }: { title: string, items: string[], selectedItems: string[], onChange: (value: string) => void }) => (
     <AccordionItem value={title.toLowerCase()}>
@@ -156,6 +168,39 @@ const ProductsPage = () => {
     </AccordionItem>
   );
   
+  const getPaginationRange = () => {
+    const delta = 1; // Number of pages to show around current page
+    const range = [];
+    const rangeWithDots = [];
+    let l;
+
+    range.push(1);
+    if (totalPages <= 1) {
+      return range;
+    }
+
+    for (let i = currentPage - delta; i <= currentPage + delta; i++) {
+      if (i < totalPages && i > 1) {
+        range.push(i);
+      }
+    }
+    range.push(totalPages);
+
+    for (const i of range) {
+      if (l) {
+        if (i - l === 2) {
+          rangeWithDots.push(l + 1);
+        } else if (i - l !== 1) {
+          rangeWithDots.push('...');
+        }
+      }
+      rangeWithDots.push(i);
+      l = i;
+    }
+    return rangeWithDots;
+  };
+
+  const paginationRange = getPaginationRange();
 
   return (
     <div className="flex flex-col lg:flex-row gap-8">
@@ -180,14 +225,11 @@ const ProductsPage = () => {
             />
         </div>
 
-
         <Accordion type="multiple" defaultValue={['category', 'brand']} className="w-full">
           <FilterSection title="Category" items={filterOptions.categories} selectedItems={selectedCategories} onChange={(val) => handleCheckboxFilterChange(setSelectedCategories, val)} />
           <FilterSection title="Brand" items={filterOptions.brands} selectedItems={selectedBrands} onChange={(val) => handleCheckboxFilterChange(setSelectedBrands, val)} />
           <FilterSection title="Size" items={filterOptions.sizes} selectedItems={selectedSizes} onChange={(val) => handleCheckboxFilterChange(setSelectedSizes, val)} />
           <FilterSection title="Color" items={filterOptions.colors} selectedItems={selectedColors} onChange={(val) => handleCheckboxFilterChange(setSelectedColors, val)} />
-          
-          {/* Price Range AccordionItem removed */}
         </Accordion>
       </aside>
 
@@ -209,9 +251,9 @@ const ProductsPage = () => {
           </Select>
         </div>
 
-        {filteredProducts.length > 0 ? (
+        {currentProductsToDisplay.length > 0 ? (
           <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-6">
-            {filteredProducts.map(product => (
+            {currentProductsToDisplay.map(product => (
               <ProductCard key={product.id} product={product} />
             ))}
           </div>
@@ -223,6 +265,49 @@ const ProductsPage = () => {
             {activeFilterCount > 0 && (
                 <Button onClick={resetFilters} variant="link" className="mt-4 text-primary">Reset Filters</Button>
             )}
+          </div>
+        )}
+
+        {totalPages > 1 && (
+          <div className="flex justify-center items-center space-x-1 sm:space-x-2 mt-10">
+            <Button
+              variant="outline"
+              size="icon"
+              onClick={() => handlePageChange(currentPage - 1)}
+              disabled={currentPage === 1}
+              aria-label="Go to previous page"
+            >
+              <ChevronLeft className="h-5 w-5" />
+            </Button>
+            {paginationRange.map((page, index) =>
+              typeof page === 'number' ? (
+                <Button
+                  key={`page-${page}`}
+                  variant={currentPage === page ? "default" : "outline"}
+                  size="icon"
+                  onClick={() => handlePageChange(page)}
+                  aria-label={`Go to page ${page}`}
+                  className="hidden sm:inline-flex" // Hide number buttons on very small screens
+                >
+                  {page}
+                </Button>
+              ) : (
+                <span key={`dots-${index}`} className="px-1 sm:px-2 hidden sm:inline-block">...</span>
+              )
+            )}
+             {/* Mobile page indicator */}
+            <span className="sm:hidden text-sm text-muted-foreground">
+              Page {currentPage} of {totalPages}
+            </span>
+            <Button
+              variant="outline"
+              size="icon"
+              onClick={() => handlePageChange(currentPage + 1)}
+              disabled={currentPage === totalPages}
+              aria-label="Go to next page"
+            >
+              <ChevronRight className="h-5 w-5" />
+            </Button>
           </div>
         )}
       </main>
