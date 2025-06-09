@@ -8,7 +8,6 @@ import { useState, useEffect, useMemo } from 'react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Slider } from "@/components/ui/slider";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
@@ -26,20 +25,18 @@ const ProductsPage = () => {
   const [selectedBrands, setSelectedBrands] = useState<string[]>([]);
   const [selectedSizes, setSelectedSizes] = useState<string[]>([]);
   const [selectedColors, setSelectedColors] = useState<string[]>([]);
-  const [priceRange, setPriceRange] = useState<[number, number]>([0, 1000]);
+  // Price range state removed
   const [sortBy, setSortBy] = useState('name-asc');
 
   const searchParams = useSearchParams();
-  const router = useRouter(); // Added router for programmatic navigation in resetFilters
+  const router = useRouter(); 
 
   useEffect(() => {
     const productsData = getAllProducts();
     setAllProducts(productsData);
     const options = fetchFilterOptions();
     setFilterOptions(options);
-    if (options) { 
-        setPriceRange([0, options.maxPrice]);
-    }
+    // Price range initialization removed
 
     const querySearchTerm = searchParams.get('q');
     if (querySearchTerm) {
@@ -77,10 +74,7 @@ const ProductsPage = () => {
       tempProducts = tempProducts.filter(p => p.availableColors.some(c => selectedColors.includes(c)));
     }
     
-    if (filterOptions) { 
-        tempProducts = tempProducts.filter(p => p.price >= priceRange[0] && p.price <= priceRange[1]);
-    }
-
+    // Price range filter logic removed
 
     switch (sortBy) {
       case 'price-asc':
@@ -99,7 +93,7 @@ const ProductsPage = () => {
         break;
     }
     setFilteredProducts(tempProducts);
-  }, [searchTerm, selectedCategories, selectedBrands, selectedSizes, selectedColors, priceRange, sortBy, allProducts, filterOptions]);
+  }, [searchTerm, selectedCategories, selectedBrands, selectedSizes, selectedColors, sortBy, allProducts, filterOptions]);
 
   const handleCheckboxFilterChange = (setter: React.Dispatch<React.SetStateAction<string[]>>, value: string) => {
     setter(prev => prev.includes(value) ? prev.filter(item => item !== value) : [...prev, value]);
@@ -111,7 +105,7 @@ const ProductsPage = () => {
     setSelectedBrands([]);
     setSelectedSizes([]);
     setSelectedColors([]);
-    if (filterOptions) setPriceRange([0, filterOptions.maxPrice]);
+    // Price range reset removed
     setSortBy('name-asc');
     const currentParams = new URLSearchParams(window.location.search);
     if (currentParams.has('category')) {
@@ -130,9 +124,9 @@ const ProductsPage = () => {
     if (selectedBrands.length > 0) count += selectedBrands.length;
     if (selectedSizes.length > 0) count += selectedSizes.length;
     if (selectedColors.length > 0) count += selectedColors.length;
-    if (filterOptions && (priceRange[0] !== 0 || priceRange[1] !== filterOptions.maxPrice)) count++;
+    // Price range count removed
     return count;
-  }, [searchTerm, selectedCategories, selectedBrands, selectedSizes, selectedColors, priceRange, filterOptions]);
+  }, [searchTerm, selectedCategories, selectedBrands, selectedSizes, selectedColors, filterOptions]);
 
 
   if (!filterOptions) {
@@ -187,32 +181,13 @@ const ProductsPage = () => {
         </div>
 
 
-        <Accordion type="multiple" defaultValue={['category', 'brand', 'price']} className="w-full">
+        <Accordion type="multiple" defaultValue={['category', 'brand']} className="w-full">
           <FilterSection title="Category" items={filterOptions.categories} selectedItems={selectedCategories} onChange={(val) => handleCheckboxFilterChange(setSelectedCategories, val)} />
           <FilterSection title="Brand" items={filterOptions.brands} selectedItems={selectedBrands} onChange={(val) => handleCheckboxFilterChange(setSelectedBrands, val)} />
           <FilterSection title="Size" items={filterOptions.sizes} selectedItems={selectedSizes} onChange={(val) => handleCheckboxFilterChange(setSelectedSizes, val)} />
           <FilterSection title="Color" items={filterOptions.colors} selectedItems={selectedColors} onChange={(val) => handleCheckboxFilterChange(setSelectedColors, val)} />
           
-          <AccordionItem value="price">
-            <AccordionTrigger className="font-semibold">Price Range</AccordionTrigger>
-            <AccordionContent>
-              <div className="space-y-2 pt-2">
-                <Slider
-                  min={0}
-                  max={filterOptions.maxPrice}
-                  step={1}
-                  value={priceRange}
-                  onValueChange={(value) => setPriceRange(value as [number, number])}
-                  className="my-4"
-                  aria-label="Price range slider"
-                />
-                <div className="flex justify-between text-sm text-muted-foreground">
-                  <span>${priceRange[0]}</span>
-                  <span>${priceRange[1]}</span>
-                </div>
-              </div>
-            </AccordionContent>
-          </AccordionItem>
+          {/* Price Range AccordionItem removed */}
         </Accordion>
       </aside>
 
