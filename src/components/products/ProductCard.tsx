@@ -23,7 +23,7 @@ const ProductCard = ({ product }: ProductCardProps) => {
 
   return (
     <Card className="overflow-hidden shadow-lg hover:shadow-xl transition-shadow duration-300 flex flex-col h-full">
-      <Link href={`/products/${product.slug}`} passHref className="block">
+      <Link href={`/products/${product.slug}`} className="block">
         <CardHeader className="p-0">
           <div className="aspect-[4/3] relative w-full">
             <Image
@@ -38,7 +38,7 @@ const ProductCard = ({ product }: ProductCardProps) => {
         </CardHeader>
       </Link>
       <CardContent className="p-4 flex-grow">
-        <Link href={`/products/${product.slug}`} passHref>
+        <Link href={`/products/${product.slug}`}>
             <CardTitle className="text-lg font-headline group-hover:text-primary transition-colors mb-1 truncate">
               {product.name}
             </CardTitle>
